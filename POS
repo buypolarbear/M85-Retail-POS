@@ -1,0 +1,692 @@
+<html>
+
+-->
+<title>M85 Digital Payments</title>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<script type="text/javascript" src="qrcode.js"> </script>
+<script type="text/javascript" src="html5-qrcode.js"> </script>
+<!--
+//Default addresses. PLEASE UPDATE THIS FILE BEFORE ACCEPTING PAYMENT !
+publicAddresses.js
+-->
+<script type="text/javascript" src="publicAddresses.js"> </script>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
+<style>
+
+table {
+    border-collapse: collapse;
+}
+
+</style>
+
+<script>
+
+selectedCcy="";
+selectedAddress="";
+
+function addCommas(nStr) {
+    nStr += '';
+    x = nStr.split('.');
+    x1 = x[0];
+    x2 = x.length > 1 ? '.' + x[1] : '';
+    var rgx = /(\d+)(\d{3})/;
+    while (rgx.test(x1)) {
+            x1 = x1.replace(rgx, '$1' + ',' + '$2');
+    }
+    return x1 + x2;
+}
+
+$(document).ready(function(){
+
+    //Colours
+    selectedOrange='#F6BF8F';
+    updateGreen='#0ECA36';
+    updateRed='#FB3B1C';
+    paymentStatusColour='#FAEB4C';
+ 
+    //Invoice Amount 
+    invoiceAmount=0;
+    getFiatPrices(invoiceAmount);
+
+    $("#getFiatPrices").click(function(){
+        getFiatPrices(invoiceAmount);
+    });
+
+    $("#OrderTotalAmount").bind("keyUp_updateQR",function(e){
+	  invoiceAmount=$('#OrderTotalAmount').val();
+          updateCryptoPrices();
+    });
+
+	$('#OrderTotalAmount').keyup(function(){
+	    var val = $(this).val();
+	    if(isNaN(val)){
+		 val = val.replace(/[^0-9\.]/g,'');
+		 if(val.split('.').length>2) 
+		     val =val.replace(/\.+$/,"");
+	    } 
+	    $(this).val(val); 
+	    $(this).trigger("keyUp_updateQR");
+	});
+
+    $(".QRUpdateLTC").click(function(){
+		if($('#OrderTotalAmount').val()==0){
+		    $('#OrderTotalAmount').effect("highlight",{color: updateRed}, 1000);
+		    return;
+		}
+   	        updateQRCode($(this),"litecoin","LITECOIN","ltc");
+    });
+
+
+    $(".QRUpdateBTC").click(function(){
+		if($('#OrderTotalAmount').val()==0){
+		    $('#OrderTotalAmount').effect("highlight",{color: updateRed}, 1000);
+		    return;
+		}
+   	        updateQRCode($(this),"bitcoin","BITCOIN","btc");
+    });
+
+    $(".QRUpdateDASH").click(function(){
+		if($('#OrderTotalAmount').val()==0){
+		    $('#OrderTotalAmount').effect("highlight",{color: updateRed}, 1000);
+		    return;
+		}
+   	        updateQRCode($(this),"dash","DASH","dash");
+    });
+
+    $(".QRUpdateETH").click(function(){
+		if($('#OrderTotalAmount').val()==0){
+		    $('#OrderTotalAmount').effect("highlight",{color: updateRed}, 1000);
+		    return;
+		}
+		updateQRCode($(this),"ethereum","ETHEREUM","eth");
+    });
+
+    $(".QRUpdateDOGE").click(function(){
+		if($('#OrderTotalAmount').val()==0){
+		    $('#OrderTotalAmount').effect("highlight",{color: updateRed}, 1000);
+		    return;
+		}
+		updateQRCode($(this),"dogecoin","DOGECOIN","doge");
+    });
+
+    $(".QRUpdateBCH").click(function(){
+		if($('#OrderTotalAmount').val()==0){
+		    $('#OrderTotalAmount').effect("highlight",{color: updateRed}, 1000);
+		    return;
+		}
+		updateQRCode($(this),"bitcoin-cash","BITCOIN CASH","bch");
+    });
+
+    $("#checkTxnStatus").click(function(){
+	if($('#OrderTotalAmount').val()==0){
+	    $('#OrderTotalAmount').effect("highlight",{color: updateRed}, 1000);
+            return;
+        }
+	$('#checkTxnStatus').effect("highlight",{color: selectedOrange}, 500);
+	pollBlockChainForConfirmations(selectedCcy,selectedAddress);
+
+      //Scroll down to blockchain check
+	$('html,body').animate({
+		scrollTop: $("#blockchainCheck").offset().top},
+	'slow');
+    });
+
+    $("[checkPayment]").click(function(){
+	var ccy_qr_name = $(this).attr('checkPayment');
+
+                    var ccy_address="";
+		    var ccy_short_name="";
+
+                    if(ccy_qr_name==="dash"){
+                         ccy_address = dashAddress;
+			 ccy_short_name = "dash";
+                    } else if(ccy_qr_name==="M85") {
+                         ccy_address = M85Address;
+			 ccy_short_name = "M85";
+                    } else if(ccy_qr_name==="litecoin") {
+                         ccy_address = ltcAddress;
+			 ccy_short_name = "ltc";
+                    } else if(ccy_qr_name==="bitcoin") {
+                         ccy_address = btcAddress;
+			 ccy_short_name = "btc";
+                    } else if(ccy_qr_name==="ethereum") {
+                         ccy_address = ethAddress;
+			 ccy_short_name = "eth";
+                    } else if(ccy_qr_name==="bitcoin-cash") {
+                         ccy_address = bchAddress;
+			 ccy_short_name = "bch";
+                    } else if(ccy_qr_name==="dogecoin") {
+                         ccy_address = dogeAddress;
+			 ccy_short_name = "doge";
+                    } else {
+                      //print "Unknown ccy type";
+                    } 
+
+            //Show payments for selected addresses
+            pollBlockChainForConfirmations(ccy_short_name,ccy_address);
+	    //Disable the QR code if just checking the blockchain
+            $("#QRCodeTable").toggle(false);
+    });
+
+
+    //Make obvious buttons are selectable
+    $(".QRUpdateLTC,.QRUpdateBTC,.QRUpdateM85,.QRUpdateDASH,.QRUpdateETH,.QRUpdateDOGE").css("background-color", '#6DB8F6');
+    $("[checkPayment]").css("background-color", '#6DB8F6');
+    //Hide right-side of page
+    $("#QRCodeTable").toggle(false);
+    $("#blockchainCheck").toggle(false);
+
+});
+
+
+//If an address has been gained for the CCY type; use it instead of requesting another new one
+gained_address = [];
+
+//Sets the QR Code
+function updateQRCode(jqueryObject, ccy_qr_name, ccy_name_in_capital, ccy_short_name){
+
+		      var ccy_address="";
+		      var ccy_coin_amountInCAD="";
+
+			//Disabling the use of individual addresses for the time being.
+		//      if(gained_address[ccy_qr_name]==null){  
+		//	      $.ajax({  type: "GET",
+		//			  //dataType: 'json',
+		//			  data: { ccyType: ccy_qr_name},
+		//			  async: false,
+		//			  url: "getNextAvailableAddress.php",
+		//			  success: function(result){
+		//				ccy_address = result;
+		//			  }
+		//	      });
+		//	      gained_address[ccy_qr_name] = ccy_address;
+                //      } else {
+		//	      ccy_address = gained_address[ccy_qr_name];
+		//      }
+	
+		     //Use static addresses for time being; customers can see how well it is doing
+		    if(ccy_qr_name==="dash"){
+		 	 ccy_address = dashAddress;
+			 ccy_coin_amountInCAD=dashPriceCCInCAD;
+		    } else if(ccy_qr_name==="litecoin") {
+		 	 ccy_address = ltcAddress;
+			 ccy_coin_amountInCAD=ltcPriceCCInCAD;
+                    } else if(ccy_qr_name==="bitcoin") {
+		 	 ccy_address = btcAddress;
+			 ccy_coin_amountInCAD=M85PriceCCInCAD;
+		    } else if(ccy_qr_name==="M85") {
+		 	 ccy_address = M85Address;
+			 ccy_coin_amountInCAD=M85PriceCCInCAD;
+		    } else if(ccy_qr_name==="ethereum") {
+		 	 ccy_address = ethAddress;
+			 ccy_coin_amountInCAD=ethPriceCCInCAD;
+		    } else if(ccy_qr_name==="dogecoin") {
+		 	 ccy_address = dogeAddress;
+			 ccy_coin_amountInCAD=dogePriceCCInCAD;
+		    } else if(ccy_qr_name==="bitcoin-cash") {
+		 	 ccy_address = bchAddress;
+			 ccy_coin_amountInCAD=bchPriceCCInCAD;
+		    } else { 
+		      //print "Unknown ccy type";
+		    }
+
+		      //Show this has been selected
+		      //Deselect all others
+                      $(".QRUpdateLTC,.QRUpdateBTC,.QRUpdateDASH,.QRUpdateM85,.QRUpdateETH,.QRUpdateBCH,.QRUpdateDOGE").css("background-color", '#6DB8F6');
+                      jqueryObject.css("background-color", selectedOrange);
+
+		      var invoiceInCCY = 0;
+                      invoiceInCCY=Number(invoiceAmount)/ccy_coin_amountInCAD;
+                      invoiceInCCY=invoiceInCCY.toFixed(8);
+		      var qrCodeText = ccy_qr_name + ":" + ccy_address + "?amount=" + invoiceInCCY;
+		      //alert(qrCodeText);
+		      //alert(qrCodeText.length);
+
+		      //var element = document.getElementById("qrcode");
+		      var element = document.getElementById("qr_image");
+			var bodyElement = document.body;
+			if(element.lastChild)
+			  element.replaceChild(showQRCode(qrCodeText), element.lastChild);
+			else
+			  element.appendChild(showQRCode(qrCodeText));
+
+		      //Show image of the Crytpo that's been selected
+                      $("#QR_Symbol_Image").attr("src",ccy_qr_name+'.png');
+		      $("#QRCodeTable").effect("highlight",{color: updateGreen}, 1000);
+		      $("#qr_ccy").text(ccy_name_in_capital);
+		      $("#qr_amount").text(invoiceInCCY);
+		      $("#qr_address").text(ccy_address);
+		      selectedCcy = ccy_short_name;
+		      selectedAddress = ccy_address;
+		      //Clear the blockchain payments
+		      $("#blockchainCheck").toggle(false);
+
+		      //Scroll down to QR code
+			$('html,body').animate({
+				scrollTop: $("#QRCodeTable").offset().top},
+			'slow');
+}
+
+//Gets CAD prices. Also converts total amount to CCY prices.
+
+var dashPriceCCInCAD = 0;
+var btcPriceCCInCAD = 0;
+var M85PriceCCInCAD = 0;
+var ltcPriceCCInCAD = 0;
+var ethPriceCCInCAD = 0;
+var dogePriceCCInCAD = 0;
+var bchPriceCCInCAD = 0;
+
+function getFiatPrices(p_InvoiceAmount){
+
+        //coinmarketcap
+	$.ajax({  type: "GET",
+                  dataType: 'json',
+                  async: true,
+                  url: "https://api.coinmarketcap.com/v1/ticker/BITCOIN/?convert=CAD",
+                  success: function(result){
+		      btcPriceCCInCAD = result[0].price_CAD; 
+                      $("#btcPriceCC").text("$"+ addCommas(Number(result[0].price_CAD).toFixed(2)));
+                      $("#btcPriceCC").effect("highlight",{color: updateGreen}, 500);
+                      invoiceInCCY=Number(invoiceAmount/result[0].price_CAD);
+                      invoiceInCCY=invoiceInCCY.toFixed(8);
+                      $("#invoiceInBTC_CC").text(invoiceInCCY);
+                      $("#invoiceInBTC_CC").effect("highlight",{color: updateGreen}, 500);
+	
+		      //Set the fee	
+                      var ccyCADValue = btcPriceCCInCAD;
+                      var feeAmount = $("#btcPriceCC").closest('td').siblings('.fee').attr("feeSetting");
+                      $("#btcPriceCC").closest("td").siblings('.fee').html("&dollar;" + (ccyCADValue * feeAmount).toFixed(2));
+                  }
+        });
+
+	$.ajax({  type: "GET",
+                  dataType: 'json',
+                  async: true,
+                  url: "https://api.coinmarketcap.com/v1/ticker/LITECOIN/?convert=CAD",
+                  success: function(result){
+		      ltcPriceCCInCAD = result[0].price_CAD; 
+                      $("#ltcPriceCC").text("$"+Number(ltcPriceCCInCAD).toFixed(2));
+                      $("#ltcPriceCC").effect("highlight",{color: updateGreen}, 500);
+                      invoiceInCCY=Number(invoiceAmount/result[0].price_CAD);
+                      invoiceInCCY=invoiceInCCY.toFixed(8);
+                      $("#invoiceInLTC_CC").text(invoiceInCCY);
+                      $("#invoiceInLTC_CC").effect("highlight",{color: updateGreen}, 500);
+
+		      //Set the fee	
+                      var ccyCADValue = ltcPriceCCInCAD;
+                      var feeAmount = $("#ltcPriceCC").closest('td').siblings('.fee').attr("feeSetting");
+                      $("#ltcPriceCC").closest("td").siblings('.fee').html("&dollar;" + (ccyCADValue * feeAmount).toFixed(2));
+                  }
+        });
+
+	$.ajax({  type: "GET",
+                  dataType: 'json',
+                  async: true,
+                  url: "https://api.coinmarketcap.com/v1/ticker/DASH/?convert=CAD",
+                  success: function(result){
+		      dashPriceCCInCAD = result[0].price_CAD; 
+                      $("#dashPriceCC").text("$"+Number(dashPriceCCInCAD).toFixed(2) );
+                      $("#dashPriceCC").effect("highlight",{color: updateGreen}, 500);
+                      invoiceInCCY=Number(invoiceAmount/result[0].price_CAD);
+                      invoiceInCCY=invoiceInCCY.toFixed(8);
+                      $("#invoiceInDASH_CC").text(invoiceInCCY);
+                      $("#invoiceInDASH_CC").effect("highlight",{color: updateGreen}, 500);
+		      //Set the fee	
+                      var ccyCADValue = dashPriceCCInCAD;
+                      var feeAmount = $("#dashPriceCC").closest('td').siblings('.fee').attr("feeSetting");
+                      $("#dashPriceCC").closest("td").siblings('.fee').html("&dollar;" + (ccyCADValue * feeAmount).toFixed(2));
+                  }
+        });
+
+	$.ajax({  type: "GET",
+                  dataType: 'json',
+                  async: true,
+                  url: "https://api.coinmarketcap.com/v1/ticker/ETHEREUM/?convert=CAD",
+                  success: function(result){
+		      ethPriceCCInCAD = result[0].price_CAD; 
+                      $("#ethPriceCC").text("$"+Number(ethPriceCCInCAD).toFixed(2));
+                      $("#ethPriceCC").effect("highlight",{color: updateGreen}, 500);
+                      invoiceInCCY=Number(invoiceAmount/ethPriceCCInCAD);
+                      invoiceInCCY=invoiceInCCY.toFixed(8);
+                      $("#invoiceInETH_CC").text(invoiceInCCY);
+                      $("#invoiceInETH_CC").effect("highlight",{color: updateGreen}, 500);
+		      //Set the fee	
+                      var ccyCADValue = ethPriceCCInCAD;
+                      var feeAmount = $("#ethPriceCC").closest('td').siblings('.fee').attr("feeSetting");
+                      $("#ethPriceCC").closest("td").siblings('.fee').html("&dollar;" + (ethPriceCCInCAD * feeAmount).toFixed(2));
+                  }
+        });
+        $.ajax({  type: "GET",
+                  dataType: 'json',
+                  async: true,
+                  url: "https://api.coinmarketcap.com/v1/ticker/M85/?convert=CAD",
+                  success: function(result){
+		      M85PriceCCInCAD = result[0].price_CAD; 
+                      $("#M85PriceCC").text("$"+Number(M85PriceCCInCAD).toFixed(2));
+                      $("#M85PriceCC").effect("highlight",{color: updateGreen}, 500);
+                      invoiceInCCY=Number(invoiceAmount/M85PriceCCInCAD);
+                      invoiceInCCY=invoiceInCCY.toFixed(8);
+                      $("#invoiceInM85_CC").text(invoiceInCCY);
+                      $("#invoiceInM85_CC").effect("highlight",{color: updateGreen}, 500);
+		      //Set the fee	
+                      var ccyCADValue = M85PriceCCInCAD;
+                      var feeAmount = $("#M85PriceCC").closest('td').siblings('.fee').attr("feeSetting");
+                      $("#M85PriceCC").closest("td").siblings('.fee').html("&dollar;" + (M85PriceCCInCAD * feeAmount).toFixed(2));
+                  }
+        });
+
+	$.ajax({  type: "GET",
+                  dataType: 'json',
+                  async: true,
+                  url: "https://api.coinmarketcap.com/v1/ticker/DOGECOIN/?convert=CAD",
+                  success: function(result){
+		      dogePriceCCInCAD = result[0].price_CAD; 
+                      $("#dogePriceCC").text("$"+Number(dogePriceCCInCAD).toFixed(8));
+                      $("#dogePriceCC").effect("highlight",{color: updateGreen}, 500);
+                      invoiceInCCY=Number(invoiceAmount/dogePriceCCInCAD);
+                      invoiceInCCY=invoiceInCCY.toFixed(2);
+                      $("#invoiceInDOGE_CC").text(invoiceInCCY);
+                      $("#invoiceInDOGE_CC").effect("highlight",{color: updateGreen}, 500);
+		      //Set the fee	
+                      var ccyCADValue = dogePriceCCInCAD;
+                      var feeAmount = $("#dogePriceCC").closest('td').siblings('.fee').attr("feeSetting");
+                      $("#dogePriceCC").closest("td").siblings('.fee').html("&dollar;" + (dogePriceCCInCAD * feeAmount).toFixed(8));
+                  }
+        });
+
+	$.ajax({  type: "GET",
+                  dataType: 'json',
+                  async: true,
+                  url: "https://api.coinmarketcap.com/v1/ticker/BITCOIN-CASH/?convert=CAD",
+                  success: function(result){
+		      bchPriceCCInCAD = result[0].price_CAD; 
+                      $("#bchPriceCC").text("$"+Number(bchPriceCCInCAD).toFixed(2));
+                      $("#bchPriceCC").effect("highlight",{color: updateGreen}, 500);
+                      invoiceInCCY=Number(invoiceAmount/bchPriceCCInCAD);
+                      invoiceInCCY=invoiceInCCY.toFixed(8);
+                      $("#invoiceInETH_CC").text(invoiceInCCY);
+                      $("#invoiceInETH_CC").effect("highlight",{color: updateGreen}, 500);
+		      //Set the fee	
+                      var ccyCADValue =bchPriceCCInCAD;
+                      var feeAmount = $("#bchPriceCC").closest('td').siblings('.fee').attr("feeSetting");
+                      $("#bchPriceCC").closest("td").siblings('.fee').html("&dollar;" + (bchPriceCCInCAD * feeAmount).toFixed(2));
+                  }
+        });
+}
+
+
+function updateCryptoPrices(){
+
+    //Get the input amount
+    var inputtedAmount = $('#OrderTotalAmount').val();
+    
+    //Update crypto-prices
+    //Coincap
+    $("#invoiceInDASH_CC").text(Number(inputtedAmount / dashPriceCCInCAD).toFixed(8) );
+    $("#invoiceInDASH_CC").effect("highlight",{color: updateGreen}, 500);
+    $("#invoiceInETH_CC").text( Number(inputtedAmount / ethPriceCCInCAD).toFixed(8) );
+    $("#invoiceInETH_CC").effect("highlight",{color: updateGreen}, 500);
+    $("#invoiceInLTC_CC").text(Number(inputtedAmount /  ltcPriceCCInCAD).toFixed(8) );
+    $("#invoiceInLTC_CC").effect("highlight",{color: updateGreen}, 500);
+    $("#invoiceInBTC_CC").text(Number(inputtedAmount / btcPriceCCInCAD).toFixed(8) );
+    $("#invoiceInBTC_CC").effect("highlight",{color: updateGreen}, 500);
+    $("#invoiceInM85_CC").text( Number(inputtedAmount / M85PriceCCInCAD).toFixed(8) );
+    $("#invoiceInM85_CC").effect("highlight",{color: updateGreen}, 500);
+    $("#invoiceInBCH_CC").text(Number(inputtedAmount / bchPriceCCInCAD).toFixed(8) );
+    $("#invoiceInBCH_CC").effect("highlight",{color: updateGreen}, 500);
+    $("#invoiceInDOGE_CC").text(addCommas(Number(inputtedAmount / dogePriceCCInCAD).toFixed(2)) );
+    $("#invoiceInDOGE_CC").effect("highlight",{color: updateGreen}, 500);
+
+}	
+
+
+function getUnconfirmedTxnBalance(selectedCcy, selectedAddress){
+      var return_result="";
+      $.ajax({    type: "GET",
+		  async: false,
+		  dataType: "json",
+		  url: "https://api.blockcypher.com/v1/" + selectedCcy + "/main/addrs/" + selectedAddress  ,
+		  success: function(result){
+			return_result = result;
+		  }
+      });
+      return return_result;
+}
+
+function pollBlockChainForConfirmations(selectedCcy,selectedAddress){
+
+	    $.ajax({  type: "GET",
+			  dataType: 'json',
+			  async: true,
+			  url: "https://api.blockcypher.com/v1/" + selectedCcy + "/main/addrs/"+selectedAddress,
+			  success: function(result){
+			      $("#address").text(result.address);
+			      if(selectedCcy==="eth"){
+			          $("#total_received").text(result.total_received/Math.pow(10,18));
+			          $("#total_sent").text(result.total_sent/Math.pow(10,18));
+			          $("#unconfirmed_balance").text(result.unconfirmed_balance/Math.pow(10,18));
+			          $("#final_balance").text(result.final_balance/Math.pow(10,18));
+			      } else {
+			          $("#total_received").text(result.total_received/Math.pow(10,8));
+			          $("#total_sent").text(result.total_sent/Math.pow(10,8));
+			          $("#unconfirmed_balance").text(result.unconfirmed_balance/Math.pow(10,8));
+			          $("#final_balance").text(result.final_balance/Math.pow(10,8));
+			      }
+			      $("#n_tx").text(result.n_tx);
+			      $("#unconfirmed_n_tx").text(result.unconfirmed_n_tx);
+			      $("#final_n_tx").text(result.final_n_tx);
+				var txnrefs = result.txrefs;
+				var txntable = "<tr><th>Value ("+ selectedCcy +")</th><th>CAD</th><th>Side</th><th>Confirmed Time</th><th>Confirmations</th></tr>";
+				$.each( txnrefs , function( key, value ) {
+                                txntable += "<tr>";
+			        if(selectedCcy==="eth"){
+                                    txntable += "<td>" + value.value/Math.pow(10,18) + "</td>";
+                                    txntable += "<td>&dollar;" + ((value.value/Math.pow(10,18))*ethPriceCCInCAD).toFixed(8) + "</td>";
+				} else {
+                                    txntable += "<td>" + value.value/Math.pow(10,8) + "</td>";
+				    if(selectedCcy==="btc"){
+                                       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*btcPriceCCInCAD).toFixed(8) + "</td>";
+				    }
+				    if(selectedCcy==="ltc"){
+                                       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*ltcPriceCCInCAD).toFixed(8) + "</td>";
+				    }
+                                    if(selectedCcy==="M85"){
+                                       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*M85PriceCCInCAD).toFixed(8) + "</td>";
+				    }
+				    if(selectedCcy==="dash"){
+                                       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*dashPriceCCInCAD).toFixed(8) + "</td>";
+				    }
+				    if(selectedCcy==="doge"){
+                                       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*dogePriceCCInCAD).toFixed(8) + "</td>";
+				    }
+				}
+
+                                if(value.tx_input_n==-1){
+				    txntable += "<td>Received</td>";
+				} 
+				if(value.tx_output_n==-1){
+				    txntable += "<td>Spent</td>";
+				}
+                                txntable += "<td>" + value.confirmed  + "</td>";
+                                txntable += "<td>" + value.confirmations  + "</td>";
+                                txntable += "</tr>";
+				});
+				$("#txns").html(txntable);
+			       $("#unconfirmed_txrefs").text(result.unconfirmed_txrefs);
+				var txnrefs = result.unconfirmed_txrefs;
+				var txntable = "<tr><th>Value ("+ selectedCcy +")</th><th>CAD</th><th>Side</th><th>Received Time</th><th>Confirmations</th></tr>";
+				$.each( txnrefs , function( key, value ) {
+					txntable += "<tr>";
+				       if(selectedCcy==="eth"){
+					    txntable += "<td>" + value.value/Math.pow(10,18) + "</td>";
+					    txntable += "<td>&dollar;" + ((value.value/Math.pow(10,18))*$("#ethPriceCC").text()).toFixed(8) + "</td>";
+					} else {
+					    txntable += "<td>" + value.value/Math.pow(10,8) + "</td>";
+					    if(selectedCcy==="btc"){
+					       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*$("#btcPriceCC").text().replace(/,/g,"")).toFixed(8) + "</td>";
+					    }
+					    if(selectedCcy==="ltc"){
+					       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*$("#ltcPriceCC").text()).toFixed(8) + "</td>";
+					    }
+                                            if(selectedCcy==="M85"){
+					       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*$("#M85PriceCC").text()).toFixed(8) + "</td>";
+					    }
+					    if(selectedCcy==="dash"){
+					       txntable += "<td>&dollar;" + ((value.value/Math.pow(10,8))*$("#dashPriceCC").text()).toFixed(8) + "</td>";
+					    }
+					}
+					if(value.tx_input_n==-1){
+					    txntable += "<td>Received</td>";
+					} 
+					if(value.tx_output_n==-1){
+					    txntable += "<td>Spent</td>";
+					}
+					txntable += "<td>" + value.received  + "</td>";
+					txntable += "<td>" + value.confirmations  + "</td>";
+					txntable += "</tr>";
+				});
+				$("#unconfirmed_txns").html(txntable);
+			  }
+	    });
+	    $(".ccy").text(selectedCcy);
+	    //Show blockchain address payments
+	    $("#blockchainCheck").toggle(false);
+	    $("#blockchainCheck").effect("highlight",{color: updateGreen}, 500);
+}
+
+
+
+</script>
+
+</head>
+<body bgcolor="#fff">
+<a href="https://github.com/buypolarbear/CryptoTill"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/365986a132ccd6a44c23a9169022c0b5c890c387/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f7265645f6161303030302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png"></a>
+<table border=0 width="100%" >
+  <tr align="middle">
+  <td valign="top" width="100%">
+	<font style="font-size: 44pt">&dollar;</font><input type="number" id="OrderTotalAmount" value="" placeholder="0.00" style="font-size: 44pt" min="0" max="99999" >
+	<br/>
+	<table border=0 style="font-family:arial;font-size:x-large">
+	<br/>
+
+	<table border=1 bordercolor='#000000' style="font-family:arial;font-size:xx-large" width="80%">
+	<tr><th>Coin</th><th>Dollar</th><th>Coin Amount</th><th>Guided Fee</th></tr>
+	<tr class="QRUpdateDOGE">
+           <td align="center"> 
+            <img src="./dogecoin.png" style="width:50px;height:50px;">
+             <br/>
+             DOGECOIN
+           </td>
+           <td align="center" id="dogePriceCC" class="CCYPrice"></td>
+           <td align="center" id="invoiceInDOGE_CC" ></td>
+           <td align="center" class="fee" feeSetting="0.00452">&dollar;0.00452</td>
+        </tr>
+	<tr class="QRUpdateDASH">
+           <td align="center"> 
+            <img src="./dash.png" style="width:50px;height:50px;">
+             <br/>
+             DASH
+           </td>
+           <td align="center" id="dashPriceCC" class="CCYPrice"></td>
+           <td align="center" id="invoiceInDASH_CC" ></td>
+           <td align="center" class="fee" feeSetting="0.0002">&dollar;0.02</td>
+        </tr>
+	<tr class="QRUpdateETH">
+           <td align="center"> 
+            <img src="./ethereum.png" style="width:50px;height:50px;">
+             <br/>
+             ETHEREUM
+           </td>
+           <td align="center" id="ethPriceCC" class="CCYPrice">
+           </td>
+          <td align="center" id="invoiceInETH_CC"></td>
+          <td align="center" class="fee" feeSetting="0.000441">&dollar;0.07</td>
+        </tr>
+        <tr class="QRUpdateM85">
+           <td align="center"> 
+            <img src="./M85.png" style="width:50px;height:50px;">
+             <br/>
+             M85
+           </td>
+           <td align="center" id="M85PriceCC" class="CCYPrice"></td>
+           <td align="center" id="invoiceInM85_CC" ></td>
+           <td align="center" class="fee" feeSetting="0.0002">&dollar;0.02</td>
+        </tr>
+	<tr class="QRUpdateLTC">
+           <td align="center"> 
+            <img src="./litecoin.png" style="width:50px;height:50px;">
+             <br/>
+             LITECOIN
+           </td>
+          <td align="center" id="ltcPriceCC" class="CCYPrice"></td>
+          <td align="center" id="invoiceInLTC_CC"></td>
+          <td align="center" class="fee" feeSetting="0.00453992">&dollar;0.15</td>
+        </tr>
+	<tr class="QRUpdateBTC">
+           <td align="center"> 
+            <img src="./bitcoin.png" style="width:50px;height:50px;">
+             <br/>
+             BITCOIN
+           </td>
+         <td align="center" id="btcPriceCC" ></td>
+         <td align="center" id="invoiceInBTC_CC"></td>
+         <td align="center" class="fee" feeSetting="0.000452">&dollar;1.50</td>
+        </tr>
+	</table>
+   </td>
+<tr>
+</tr>
+   <td valign="top" align="center">
+	<br/>
+	    <table border=0 id="QRCodeTable" style="font-family:arial;font-size:xx-large">
+		<tr><td align="center">
+		<table style="font-family:arial;font-size:xx-large">
+		  <tr>
+		   <td>
+		      <img id="QR_Symbol_Image" height="100" width="100" src=""/>
+		   </td>
+		   <td align="center">
+		     Send 
+		     <b style="font-family:arial;font-size:xx-large" id="qr_amount"></b> 
+		     to
+		     <b style="font-family:arial;font-size:xx-large" id="qr_ccy"></b>
+		     address:
+		     <br/><i id="qr_address"></i>
+		   </td>
+		  </tr>
+		</table>
+		<div id="qr_image"></div>
+		<br/>
+		<table border=1 width="600" height="50" bgcolor="#6DB8F6" style="font-family:arial;font-size:xx-large">
+		  <td align="center" id="checkTxnStatus">Check Payments</td>
+		</table>
+		</td> 
+               </tr>
+	     </table>
+        <table id="blockchainCheck" style="font-family:arial;font-size:xx-large">
+	<tr>
+	    <td align="center" valign="top">
+		<br/>
+		<u>Unconfirmed</u>
+		<br/>
+		<table id=unconfirmed_txns border=1 bordercolor='#000000' style="font-family:arial;font-size:xx-large"> </table>
+		<br/>
+		<u>Confirmed</u>
+		<br/>
+		<table id=txns border=1 bordercolor='#000000' style="font-family:arial;font-size:xx-large"> </table>
+	    </td>
+	</tr>
+	</table>
+   </td>
+  </tr>
+</table>
+
+</body>
+
+</html>
