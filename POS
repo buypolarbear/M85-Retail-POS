@@ -290,10 +290,10 @@ function getFiatPrices(p_InvoiceAmount){
                   async: true,
                   url: "https://api.coinmarketcap.com/v1/ticker/BITCOIN/?convert=CAD",
                   success: function(result){
-		      btcPriceCCInCAD = result[0].price_CAD; 
-                      $("#btcPriceCC").text("$"+ addCommas(Number(result[0].price_CAD).toFixed(2)));
+		      btcPriceCCInCAD = result[0].price_cad; 
+                      $("#btcPriceCC").text("$"+ addCommas(Number(result[0].price_cad).toFixed(2)));
                       $("#btcPriceCC").effect("highlight",{color: updateGreen}, 500);
-                      invoiceInCCY=Number(invoiceAmount/result[0].price_CAD);
+                      invoiceInCCY=Number(invoiceAmount/result[0].price_cad);
                       invoiceInCCY=invoiceInCCY.toFixed(8);
                       $("#invoiceInBTC_CC").text(invoiceInCCY);
                       $("#invoiceInBTC_CC").effect("highlight",{color: updateGreen}, 500);
@@ -310,10 +310,10 @@ function getFiatPrices(p_InvoiceAmount){
                   async: true,
                   url: "https://api.coinmarketcap.com/v1/ticker/LITECOIN/?convert=CAD",
                   success: function(result){
-		      ltcPriceCCInCAD = result[0].price_CAD; 
+		      ltcPriceCCInCAD = result[0].price_cad; 
                       $("#ltcPriceCC").text("$"+Number(ltcPriceCCInCAD).toFixed(2));
                       $("#ltcPriceCC").effect("highlight",{color: updateGreen}, 500);
-                      invoiceInCCY=Number(invoiceAmount/result[0].price_CAD);
+                      invoiceInCCY=Number(invoiceAmount/result[0].price_cad);
                       invoiceInCCY=invoiceInCCY.toFixed(8);
                       $("#invoiceInLTC_CC").text(invoiceInCCY);
                       $("#invoiceInLTC_CC").effect("highlight",{color: updateGreen}, 500);
@@ -330,10 +330,10 @@ function getFiatPrices(p_InvoiceAmount){
                   async: true,
                   url: "https://api.coinmarketcap.com/v1/ticker/DASH/?convert=CAD",
                   success: function(result){
-		      dashPriceCCInCAD = result[0].price_CAD; 
+		      dashPriceCCInCAD = result[0].price_cad; 
                       $("#dashPriceCC").text("$"+Number(dashPriceCCInCAD).toFixed(2) );
                       $("#dashPriceCC").effect("highlight",{color: updateGreen}, 500);
-                      invoiceInCCY=Number(invoiceAmount/result[0].price_CAD);
+                      invoiceInCCY=Number(invoiceAmount/result[0].price_cad);
                       invoiceInCCY=invoiceInCCY.toFixed(8);
                       $("#invoiceInDASH_CC").text(invoiceInCCY);
                       $("#invoiceInDASH_CC").effect("highlight",{color: updateGreen}, 500);
@@ -349,7 +349,7 @@ function getFiatPrices(p_InvoiceAmount){
                   async: true,
                   url: "https://api.coinmarketcap.com/v1/ticker/ETHEREUM/?convert=CAD",
                   success: function(result){
-		      ethPriceCCInCAD = result[0].price_CAD; 
+		      ethPriceCCInCAD = result[0].price_cad; 
                       $("#ethPriceCC").text("$"+Number(ethPriceCCInCAD).toFixed(2));
                       $("#ethPriceCC").effect("highlight",{color: updateGreen}, 500);
                       invoiceInCCY=Number(invoiceAmount/ethPriceCCInCAD);
@@ -365,9 +365,9 @@ function getFiatPrices(p_InvoiceAmount){
         $.ajax({  type: "GET",
                   dataType: 'json',
                   async: true,
-                  url: "https://api.coinmarketcap.com/v1/ticker/M85/?convert=CAD",
+                  url: "https://api.coinmarketcap.com/v1/ticker/QASH/?convert=CAD",
                   success: function(result){
-		      M85PriceCCInCAD = result[0].price_CAD; 
+		      M85PriceCCInCAD = result[0].price_cad; 
                       $("#M85PriceCC").text("$"+Number(M85PriceCCInCAD).toFixed(2));
                       $("#M85PriceCC").effect("highlight",{color: updateGreen}, 500);
                       invoiceInCCY=Number(invoiceAmount/M85PriceCCInCAD);
@@ -386,7 +386,7 @@ function getFiatPrices(p_InvoiceAmount){
                   async: true,
                   url: "https://api.coinmarketcap.com/v1/ticker/DOGECOIN/?convert=CAD",
                   success: function(result){
-		      dogePriceCCInCAD = result[0].price_CAD; 
+		      dogePriceCCInCAD = result[0].price_cad; 
                       $("#dogePriceCC").text("$"+Number(dogePriceCCInCAD).toFixed(8));
                       $("#dogePriceCC").effect("highlight",{color: updateGreen}, 500);
                       invoiceInCCY=Number(invoiceAmount/dogePriceCCInCAD);
@@ -405,7 +405,7 @@ function getFiatPrices(p_InvoiceAmount){
                   async: true,
                   url: "https://api.coinmarketcap.com/v1/ticker/BITCOIN-CASH/?convert=CAD",
                   success: function(result){
-		      bchPriceCCInCAD = result[0].price_CAD; 
+		      bchPriceCCInCAD = result[0].price_cad; 
                       $("#bchPriceCC").text("$"+Number(bchPriceCCInCAD).toFixed(2));
                       $("#bchPriceCC").effect("highlight",{color: updateGreen}, 500);
                       invoiceInCCY=Number(invoiceAmount/bchPriceCCInCAD);
